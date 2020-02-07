@@ -25,8 +25,8 @@ if alpha < 0:
 
 #Initialization of the matrices 
 E0 = np.ones([grid_size,grid_size])  #We don't have access to this in reality
-data_matrix = np.zeros( [m*n,l])
-a_posteriori_matrix = np.zeros( [m,l] )
+data_matrix = np.zeros([m*n,l])
+a_posteriori_matrix = np.zeros([m,l])
 
 #Initialization of the lists
 history_current = []
@@ -43,12 +43,12 @@ moving_average = 0
 
 
 #Estimation loop
-for iteration in range(50):
+for iteration in range(500):
     
     #Update of E with random walk
-    #random_walk += 0.05*np.random.normal(size=([grid_size,grid_size]))
-    #E = E0+random_walk #Strong noise?
-    E = E0 + np.sin(iteration/(1*np.pi)) + 0.05*np.random.normal(size=([grid_size,grid_size]))
+    random_walk += 0.01*np.random.normal(size=([grid_size,grid_size]))
+    E = E0+random_walk #Strong noise?
+    #E = E0 + np.sin(iteration/(5*np.pi)) + 0.05*np.random.normal(size=([grid_size,grid_size]))
     #b =  0.5*np.random.normal(size=([grid_size,grid_size])) * np.roll(E0, -1, axis=1)
     #E = E0 + b
     E_measured_list.insert(0,E.copy())
@@ -86,11 +86,71 @@ for iteration in range(50):
 
 
 
+
+#Reorder the lists
+E_hat_list.reverse() 
+E_measured_list.reverse()
+
+##Compute the MSE & Plot the prediction results (reordered lists)
+#for i in range(delta_t,len(E_hat_list)):
+#    plt.clf()
+#    diff = E_hat_list[i] - E_measured_list[i+l+n-1-delta_t]
+#    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-1-delta_t])/np.abs(E_measured_list[i-delta_t])
+#    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
+#    MSE_list.append(squared_sum)
+#    
+#    plt.subplot(121)
+#    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
+#    plt.title('Estimation Error')
+#    plt.colorbar()
+#    plt.subplot(122)
+#    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
+#    plt.title('Estimated Field')
+#    plt.colorbar()
+#    plt.suptitle('Prediction Results')
+#    plt.pause(0.1)
+
+
+
+#Plot the Estimation for the first pixel
+plt.clf()
+plt.plot(np.arange(l+n-1-delta_t,len(E_hat_list)+l+n-1-delta_t), [val[0][0] for val in E_hat_list], color='tab:orange', label = 'Estimated Electric Field', linewidth=1)
+#plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
+plt.plot(np.arange(len(E_measured_list)), [val[0][0] for val in E_measured_list], color='tab:blue', label = 'Measured Electric Field', linewidth=1)
+plt.ylabel('Value of the first sensor [Ø]')
+plt.xlabel('Iteration index k')
+plt.title('Predicted value for the first sensor, test data')
+plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 10})
+plt.show()
+
 #Compute the MSE
 for i in range(delta_t,len(E_hat_list)):
-    diff = E_hat_list[i] - E_measured_list[i-delta_t]
-    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
+    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-1-delta_t])#/np.abs(E_measured_list[i+l+n-1-delta_t]
+    squared_sum = sum(sum(abs(rms_diff)**2)) 
     MSE_list.append(squared_sum)
+
+
+#Plot the MSE as a function of iterations
+plt.clf()
+plt.plot(np.arange(l+n-1-delta_t,len(MSE_list)+l+n-1-delta_t), [np.log(val) for val in MSE_list], color='tab:orange', label = 'MSE', linewidth=1)
+#plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
+plt.plot(np.arange(len(E_measured_list)), [np.log(val[0][0]) for val in E_measured_list], color='tab:blue', label = 'Measured Electric Field', linewidth=1)
+plt.ylabel('log(MSE)')
+plt.xlabel('Iteration index k')
+plt.title('MSE versus measured value')
+plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 10})
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -114,19 +174,6 @@ for i in range(delta_t,len(E_hat_list)):
 #    plt.pause(0.1)
     
 
-#Reorder the lists
-E_hat_list.reverse() 
-E_measured_list.reverse()
-#Plot the Estimation for the first pixel
-plt.clf()
-plt.plot(np.arange(l+n-1+delta_t,len(E_hat_list)+l+n-1+delta_t), [val[0][0] for val in E_hat_list],'r+-', label = 'Estimated Electric Field', linewidth=.5)
-#plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
-plt.plot(np.arange(len(E_measured_list)), [val[0][0] for val in E_measured_list], 'g+-',label = 'Measured Electric Field', linewidth=.5)
-plt.ylabel('Value of the first sensor [Ø]')
-plt.xlabel('Temporal frame [dt]')
-plt.title('Predicted value for the first sensor, test data')
-plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 8})
-plt.show()
 
 ##Plot the Estimation for the second pixel
 #plt.clf()
