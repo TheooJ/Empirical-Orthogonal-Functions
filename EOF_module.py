@@ -4,7 +4,6 @@
 
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 ## Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
