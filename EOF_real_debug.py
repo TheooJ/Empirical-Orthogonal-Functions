@@ -94,16 +94,11 @@ for iteration in range(400):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
         F = mod.filter_training_full_data(l,m,n,alpha,data_matrix,a_posteriori_matrix)
-        #Normalization of the filter
-#        a = np.amax(F, axis=1)
-#        for i in range(m):
-#            F[i,:] = F[i,:] * a[i]
         already_computed = True
     
     #Estimation of E if the filter has been computed
     if already_computed is True:
         E_hat = F.dot(history_list[0]).reshape(grid_size,grid_size)
-       # E_hat_list.append(E_hat)
         E_hat_list.insert(0,E_hat.copy())
         moving_average += 1
 
@@ -115,7 +110,7 @@ E_measured_list.reverse()
 
 #Compute the MSE & Plot the prediction results (reordered lists)
 for i in range(delta_t,len(E_hat_list)):
-#    plt.clf()
+    plt.clf()
     diff = E_hat_list[i] - E_measured_list[i+l+n-2+delta_t]
     rms_diff = np.abs(diff)/np.abs(E_measured_list[i+l+n-2+delta_t])
     squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
@@ -169,40 +164,3 @@ plt.xlabel('Iteration index k')
 plt.title('MSE versus measured value')
 plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 10})
 plt.show()
-
-
-
-
-
-
-##Compute the MSE & Plot the prediction results
-#for i in range(delta_t,len(E_hat_list)):
-#    plt.clf()
-#    diff = E_hat_list[i] - E_measured_list[i-delta_t]
-#    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i-delta_t])/np.abs(E_measured_list[i-delta_t])
-#    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
-#    MSE_list.append(squared_sum)
-#    
-#    plt.subplot(121)
-#    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
-#    plt.title('Estimation Error')
-#    plt.colorbar()
-#    plt.subplot(122)
-#    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
-#    plt.title('Estimated Field')
-#    plt.colorbar()
-#    plt.suptitle('Prediction Results')
-#    plt.pause(0.1)
-    
-
-
-##Plot the Estimation for the second pixel
-#plt.clf()
-#plt.plot(np.arange(l+n-1+delta_t,len(E_hat_list)+l+n-1+delta_t), [val[0][1] for val in E_hat_list],'r+-', label = 'Estimated Electric Field', linewidth=.5)
-##plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
-#plt.plot(np.arange(len(E_measured_list)), [val[0][1] for val in E_measured_list], 'g+-',label = 'Measured Electric Field', linewidth=.5)
-#plt.ylabel('Value of the second sensor [Ø]')
-#plt.xlabel('Temporal frame [dt]')
-#plt.title('Predicted value for the second sensor, test data')
-#plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 8})
-#plt.show()
