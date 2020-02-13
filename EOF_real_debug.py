@@ -11,7 +11,7 @@ import EOF_module as mod
 
 
 #Initialization of the parameters
-grid_size = 25
+grid_size = 15
 
 l = 15 #Nb of history vectors in data matrix
 m = grid_size**2  #Nb of measurements in each time sample
@@ -93,7 +93,7 @@ for iteration in range(400):
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = mod.filter_training_full_data(l,m,n,alpha,data_matrix,a_posteriori_matrix)
+        F = mod.filter_training_full_data_complex(l,m,n,alpha,data_matrix,a_posteriori_matrix)
         already_computed = True
     
     #Estimation of E if the filter has been computed
