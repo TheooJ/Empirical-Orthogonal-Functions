@@ -13,14 +13,14 @@ import EOF_module as mod
 #Initialization of the parameters
 grid_size = 25
 
-l = 15 #Nb of history vectors in data matrix
+l = 5 #Nb of history vectors in data matrix
 m = grid_size**2  #Nb of measurements in each time sample
-n = 4  #Nb of time samples in a history vector
+n = 3  #Nb of time samples in a history vector
 delta_t = 1 #Temporal position of the wavefront we want to estimate
-window = 10 #Number of samples before recomputing the filter
+window = 3 #Number of samples before recomputing the filter
             #Can be set to arbitrarily large value if we don't want a MA
 
-alpha = 0 # Tikhonov regularization parameter
+alpha = 1e-3 # Tikhonov regularization parameter
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
 
@@ -39,7 +39,6 @@ sigma_2 = 2.7
 planet = np.zeros([grid_size,grid_size])
 speckles = np.zeros([grid_size,grid_size])
 
-
 for row in range(planet.shape[0]):
     for col in range(planet.shape[1]):
         planet[row][col] = np.exp( - np.sqrt( (row-center_1[0])**2 + (col-center_1[1])**2 )  / sigma_1**2)
@@ -54,21 +53,26 @@ E_measured_list = []
 E_hat_list = []
 MSE_list = []
 
+
 nb_hist = 0 
 random_walk = np.zeros([grid_size,grid_size])
 already_computed = False 
 moving_average = 0
 
-
+rms_diff_list=[]
 
 #Estimation loop
-for iteration in range(400):
+for iteration in range(150):
     
-    #Update of E with random walk
-    random_walk += 0.03*np.random.normal(size=([grid_size,grid_size]))
-    #E = E0+random_walk #Strong noise?
+    #Update of E
+    random_walk += 0.05*np.random.normal(size=([grid_size,grid_size])) 
+    #E = camera + random_walk + 0.1*np.random.poisson(abs(E0), size=([grid_size,grid_size]))#Drift
     E = camera + random_walk
+   
+    #E = E0 + 0.05*np.random.normal(size=([grid_size,grid_size])) #Normal gaussian noise
     
+    #E = E0 + 0.03*np.random.poisson(abs(E0), size=([grid_size,grid_size]))
+
     
     #E = E0 + np.sin(iteration/(5*np.pi)) + 0.05*np.random.normal(size=([grid_size,grid_size]))
     #b =  0.03*np.random.normal(size=([grid_size,grid_size])) * np.roll(E0, -1, axis=1)
@@ -93,7 +97,7 @@ for iteration in range(400):
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = mod.filter_training_full_data(l,m,n,alpha,data_matrix,a_posteriori_matrix)
+        F = mod.filter_training_full_data_complex(l,m,n,alpha,data_matrix,a_posteriori_matrix)
         already_computed = True
     
     #Estimation of E if the filter has been computed
@@ -108,59 +112,93 @@ for iteration in range(400):
 E_hat_list.reverse() 
 E_measured_list.reverse()
 
-#Compute the MSE & Plot the prediction results (reordered lists)
-for i in range(delta_t,len(E_hat_list)):
-    plt.clf()
-    diff = E_hat_list[i] - E_measured_list[i+l+n-2+delta_t]
-    rms_diff = np.abs(diff)/np.abs(E_measured_list[i+l+n-2+delta_t])
-    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
-    MSE_list.append(squared_sum)
+     ####Compute the MSE & Plot the prediction results (reordered lists)
 
-    plt.subplot(131)
-    plt.imshow(abs(E_measured_list[i+l+n-2+delta_t]), cmap='inferno')
-    plt.title('Measured Field')
-    plt.colorbar()
-    
-    plt.subplot(132)
-    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
-    plt.title('Estimated Field')
-    plt.colorbar()
-    
-    plt.subplot(133)
-    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
-    plt.title('Estimation Error')
-    plt.colorbar()
-    
-    plt.suptitle('Prediction Results, iteration {}'.format(i))
-    plt.pause(0.1)
+#for i in range(delta_t,len(E_hat_list)):
+#    plt.clf()
+#    diff = E_hat_list[i] - E_measured_list[i+l+n-2+delta_t]
+#    rms_diff = np.abs(diff)/np.abs(E_measured_list[i+l+n-2+delta_t])
+#    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
+#    MSE_list.append(squared_sum)
+#
+#    plt.subplot(131)
+#    plt.imshow(abs(E_measured_list[i+l+n-2+delta_t]), cmap='inferno')
+#    plt.title('Measured Field')
+#    plt.colorbar()
+#    
+#    plt.subplot(132)
+#    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
+#    plt.title('Estimated Field')
+#    plt.colorbar()
+#    
+#    plt.subplot(133)
+#    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
+#    plt.title('Estimation Error')
+#    plt.colorbar()
+#    
+#    plt.suptitle('Prediction Results, iteration {}'.format(i))
+#    plt.pause(0.1)
 
 
 
-#Plot the Estimation for the first pixel
+
+####Plot the Estimation for the first pixel
 plt.clf()
-plt.plot(np.arange(l+n-1-delta_t,len(E_hat_list)+l+n-1-delta_t), [val[0][0] for val in E_hat_list], color='tab:orange', label = 'Estimated Electric Field', linewidth=1)
-#plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
+plt.plot(np.arange(l+n-2+delta_t,len(E_hat_list)+l+n-2+delta_t), [val[0][0] for val in E_hat_list], color='tab:orange', label = 'Estimated Electric Field', linewidth=1)
 plt.plot(np.arange(len(E_measured_list)), [val[0][0] for val in E_measured_list], color='tab:blue', label = 'Measured Electric Field', linewidth=1)
 plt.ylabel('Value of the first sensor [Ø]')
 plt.xlabel('Iteration index k')
 plt.title('Predicted versus measured value for the first sensor')
 plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 10})
 plt.show()
+     
+     
+
+
 
 #Compute the MSE
 for i in range(delta_t,len(E_hat_list)):
-    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-1-delta_t])#/np.abs(E_measured_list[i+l+n-1-delta_t]
+    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-2+delta_t])/np.abs(E_measured_list[i+l+n-2+delta_t])
+    rms_diff_list.append(rms_diff) 
     squared_sum = sum(sum(abs(rms_diff)**2)) 
     MSE_list.append(squared_sum)
 
 
-#Plot the MSE as a function of iterations
+
+
+###Plot the MSE as a function of iterations
 plt.clf()
-plt.plot(np.arange(l+n-1-delta_t,len(MSE_list)+l+n-1-delta_t), [np.log(val) for val in MSE_list], color='tab:orange', label = 'log(MSE)', linewidth=1)
-#plt.plot(np.arange(len(E_hat_list)), 1 ,'r+-', label = 'True position', linewidth=.5)
+plt.plot(np.arange(l+n-2+delta_t,len(MSE_list)+l+n-2+delta_t), [np.log(val) for val in MSE_list], color='tab:orange', label = 'log(MSE)', linewidth=1)
 plt.plot(np.arange(len(E_measured_list)), [np.log(val[0][0]) for val in E_measured_list], color='tab:blue', label = 'log(Measured Electric Field)', linewidth=1)
 plt.ylabel('log(MSE)')
 plt.xlabel('Iteration index k')
 plt.title('MSE versus measured value')
 plt.legend(bbox_to_anchor = (1, 1), loc = 'upper right', prop = {'size': 10})
 plt.show()
+
+#
+     #####Plot rmd_diff pour montrer recalcul du filtre
+#for i in range(28,34):
+#    plt.clf()
+#    plt.imshow(rms_diff_list[i], vmin=0, vmax=0.1, cmap='inferno')
+#    plt.title('Reconstruction MSE')
+#    plt.colorbar()
+#    plt.pause(0.1)
+     
+     
+     
+### Computing of the autocorrelation
+autocorrelation_list = []
+for i in range(len(history_list)):
+    a = sum([x * np.conj(y) for x, y in zip(history_list[0], history_list[i])]) 
+    autocorrelation_list.append(a.copy())
+    
+### Plot the autocorrelation
+plt.clf()
+plt.plot(np.arange(len(autocorrelation_list)), [val for val in autocorrelation_list], color='tab:blue', linewidth=1)
+plt.ylabel('Autocorrelation [wf^2]')
+plt.xlabel('Time shift')
+plt.title('Autocorrelation of the history vector')
+plt.show()
+
+print('Autocorrelation slope is', (autocorrelation_list[-1]-autocorrelation_list[0])/len(autocorrelation_list))
