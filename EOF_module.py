@@ -1,25 +1,16 @@
-#EOF Guyon for implementation on HciPy
-# min(F) ||FD - P||^2 + alpha||F||^2
-#Last checked 05/02
-
-
 import numpy as np
 
 
-## Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
-## Compute the filter F from either a matrix of all concatenated history data
-## or using a moving concatenated matrix of history data
+"""Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
+Compute the filter F from either a  moving matrix of concatenated history data
 
-
-##                Training step of the filter with all of the data
-
-#l = 100 #Number of history vectors in data matrix
-#m = 4  #Number of measurements in history vectors 
-#n = 10  #Number of time samples in history vectors 
-#temporal_lag = 3 #Delay between the phenomenom happening and acquisition
-#window = 5 #Size of the window of the moving average
-#
-#alpha = 1e-3 # Tiknhonov regularization of the filter
+:param l: Number of history vectors in data matrix
+:param m: Number of measurements in history vectors 
+:param n: Number of time samples in history vectors 
+:param temporal_lag: Delay between the phenomenom happening and acquisition
+:param window: Size of the window of the moving average
+:param alpha: Tiknhonov regularization of the filter
+"""
 
 
 
