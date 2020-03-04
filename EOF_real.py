@@ -1,7 +1,14 @@
-##Working space for EOF implementation with "Blind" Moving Average
-#Created 03/02: last version of EOF
-#Last checked on 12/02
+"""Working space for EOF implementation with Blind Moving Average
+Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
+Compute the filter F from either a  moving matrix of concatenated history data
 
+:param l: Number of history vectors in data matrix
+:param m: Number of measurements in history vectors 
+:param n: Number of time samples in history vectors 
+:param delta_t: Delay between the phenomenom happening and acquisition
+:param window: Size of the window of the moving average
+:param alpha: Tiknhonov regularization of the filter
+"""
 
 #from hcipy import *
 import numpy as np
@@ -11,13 +18,13 @@ import EOF_module as mod
 
 
 #Initialization of the parameters
-grid_size = 25
+grid_size = 20
 
 l = 5 #Nb of history vectors in data matrix
 m = grid_size**2  #Nb of measurements in each time sample
 n = 3  #Nb of time samples in a history vector
 delta_t = 1 #Temporal position of the wavefront we want to estimate
-window = 3 #Number of samples before recomputing the filter
+window = 10 #Number of samples before recomputing the filter
             #Can be set to arbitrarily large value if we don't want a MA
 
 alpha = 1e-3 # Tikhonov regularization parameter
@@ -62,7 +69,7 @@ moving_average = 0
 rms_diff_list=[]
 
 #Estimation loop
-for iteration in range(150):
+for iteration in range(200):
     
     #Update of E
     random_walk += 0.05*np.random.normal(size=([grid_size,grid_size])) 
@@ -97,7 +104,7 @@ for iteration in range(150):
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = mod.filter_training_full_data_complex(l,m,n,alpha,data_matrix,a_posteriori_matrix)
+        F = mod.filter_training_real(l,m,n,alpha,data_matrix,a_posteriori_matrix)
         already_computed = True
     
     #Estimation of E if the filter has been computed
@@ -111,6 +118,7 @@ for iteration in range(150):
 #Reorder the lists
 E_hat_list.reverse() 
 E_measured_list.reverse()
+
 
      ####Compute the MSE & Plot the prediction results (reordered lists)
 
@@ -157,11 +165,12 @@ plt.show()
 
 
 #Compute the MSE
-for i in range(delta_t,len(E_hat_list)):
-    rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-2+delta_t])/np.abs(E_measured_list[i+l+n-2+delta_t])
-    rms_diff_list.append(rms_diff) 
-    squared_sum = sum(sum(abs(rms_diff)**2)) 
-    MSE_list.append(squared_sum)
+if not(MSE_list):
+    for i in range(delta_t,len(E_hat_list)):
+        rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-2+delta_t])#/np.abs(E_measured_list[i+l+n-2+delta_t])
+        rms_diff_list.append(rms_diff) 
+        squared_sum = sum(sum(abs(rms_diff)**2)) 
+        MSE_list.append(squared_sum)
 
 
 
