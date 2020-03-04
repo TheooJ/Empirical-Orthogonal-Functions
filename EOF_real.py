@@ -1,6 +1,6 @@
-"""Working space for EOF implementation with Blind Moving Average
-Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
-Compute the filter F from either a  moving matrix of concatenated history data
+"""Time series analysis using EOF_module.
+Implement the Empirical Orthogonal Functions from Guyon et al. 2017
+Compute the filter F from either a  moving matrix of concatenated history data.
 
 :param l: Number of history vectors in data matrix
 :param m: Number of measurements in history vectors 
@@ -201,6 +201,8 @@ autocorrelation_list = []
 for i in range(len(history_list)):
     a = sum([x * np.conj(y) for x, y in zip(history_list[0], history_list[i])]) 
     autocorrelation_list.append(a.copy())
+    
+    #TO DO: Divide by nb points
     
 ### Plot the autocorrelation
 plt.clf()
