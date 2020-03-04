@@ -1,7 +1,7 @@
 import numpy as np
 
 
-"""Module for filter computing with Empirical Orthogonal Functions
+"""Module for Empirical Orthogonal Functions, return the filter.
 Functions are:
     filter_training_real: for computing of filter with real data
     filter_training_complex: for computing of filter with complex data
