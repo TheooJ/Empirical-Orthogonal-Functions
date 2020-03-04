@@ -1,20 +1,22 @@
 import numpy as np
 
 
-"""Implementation of the Empirical Orthogonal Functions from Guyon et al. 2017
-Compute the filter F from either a  moving matrix of concatenated history data
+"""Module for filter computing with Empirical Orthogonal Functions
+Functions are:
+    filter_training_real: for computing of filter with real data
+    filter_training_complex: for computing of filter with complex data
 
 :param l: Number of history vectors in data matrix
 :param m: Number of measurements in history vectors 
 :param n: Number of time samples in history vectors 
-:param temporal_lag: Delay between the phenomenom happening and acquisition
+:param delta_t: Delay between the phenomenom happening and acquisition
 :param window: Size of the window of the moving average
 :param alpha: Tiknhonov regularization of the filter
 """
 
 
 
-def filter_training_full_data(l,m,n,alpha,data_matrix,a_posteriori_matrix):
+def filter_training_real(l,m,n,alpha,data_matrix,a_posteriori_matrix):
     
     #Computing of the filter
     if alpha == 0:
@@ -47,7 +49,7 @@ def filter_training_full_data(l,m,n,alpha,data_matrix,a_posteriori_matrix):
 
 
 
-def filter_training_full_data_complex(l,m,n,alpha,data_matrix,a_posteriori_matrix):
+def filter_training_complex(l,m,n,alpha,data_matrix,a_posteriori_matrix):
     
     #Computing of the filter
     if alpha == 0:
