@@ -27,14 +27,13 @@ m = grid_size**2
 n = 4 
 delta_t = 1 
 
-alpha = 1e-2 
+alpha = 0 
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
   
-window = 5
-if window is not None:
-    already_computed = False 
-    moving_average = 0
+window = None
+already_computed = False 
+moving_average = 0
 
 data_type = 'real'
 
@@ -99,9 +98,10 @@ for iteration in range(200):
         nb_hist +=1
      
     # Check if we need to recompute the filter
-    if moving_average == window: 
-        already_computed = False
-        moving_average = 0
+    if window is not None:     
+        if moving_average == window: 
+            already_computed = False
+            moving_average = 0
     
     # Construct the data matrix, a posteriori matrix and compute the filter  
     if already_computed is False and nb_hist >= l+delta_t:
