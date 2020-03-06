@@ -17,9 +17,9 @@ def filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='compl
     :param n: Number of time samples in history vectors 
     :param delta_t: Delay between the phenomenom happening and acquisition
     :param alpha: Tikhonov regularization of the filter
-    :param data_type: 
+    :param data_type: Type of the training data. Either 'real' or 'complex'.
         
-    Return the filter to estimate every element in history vector
+    Return the filter to estimate every element in history vector.
     """
     
     if data_type == 'complex': 
@@ -47,9 +47,7 @@ def filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='compl
         
             product = U.dot( epsilon_pseudo_invert.conj().T ).dot( VT )
             filter_full = a_posteriori_matrix_reg.dot( product )
-    
-    
-        return filter_full
+
         
     elif data_type == 'real':
     #Compute filter with real data
@@ -78,7 +76,7 @@ def filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='compl
             filter_full = a_posteriori_matrix_reg.dot( product )
     
     
-        return filter_full
+    return filter_full
 
 
 
@@ -88,8 +86,11 @@ def filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='compl
 #TO DO: "smart" moving average with rank-one update
 
 def filter_training_moving_average(l,m,n,alpha,window,data_matrix,history_new,a_posteriori_matrix,a_posteriori_new):
-    """ Function that returns the history vectors, the data matrix, 
-    the a posteriori matrix and the full-order filter for the training set """
+    """ Function to compute filter with EOF using rank-one update.
+    
+    Return the filter to estimate every element in history vector, the data 
+    matrix and the a posteriori matrix.
+    """
     
     ##Data matrix update with new history
     data_matrix = np.delete(data_matrix, [range(window)], axis=1)
@@ -110,7 +111,8 @@ def filter_training_moving_average(l,m,n,alpha,window,data_matrix,history_new,a_
         epsilon_pseudo_invert = np.linalg.pinv(epsilon)
     
         product = U.dot( epsilon_pseudo_invert.T ).dot( VT )
-        filter_MA = a_posteriori_matrix.dot( product )    
+        filter_MA = a_posteriori_matrix.dot( product )   
+        
     else:
         data_matrix_reg = np.c_[ data_matrix, np.sqrt(alpha)*np.eye(n*m) ]
         a_posteriori_matrix_reg = np.c_[ a_posteriori_matrix, np.zeros([m,n*m]) ]
@@ -126,4 +128,4 @@ def filter_training_moving_average(l,m,n,alpha,window,data_matrix,history_new,a_
 
 
     
-    return data_matrix,a_posteriori_matrix,filter_MA
+    return filter_MA,data_matrix,a_posteriori_matrix
