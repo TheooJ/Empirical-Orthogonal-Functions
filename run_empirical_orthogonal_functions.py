@@ -1,43 +1,49 @@
-"""Time series analysis using EOF_module.
+"""Time series analysis using empirical orthogonal functions.
 
 Implement the Empirical Orthogonal Functions from Guyon et al. 2017,
 compute the filter F from a matrix of concatenated history data that can be 
 regularly updated.
 
+:param grid_size: Size of the image grid to construct
 :param l: Number of history vectors in data matrix
 :param m: Number of measurements in history vectors 
 :param n: Number of time samples in history vectors 
-:param delta_t: Delay between the phenomenom happening and acquisition
-:param window: Number of samples before recomputing the filter \
-               Can be set to arbitrarily large value if we don't want a MA
+:param delta_t: Number of steps in the future for which the estimation will happen
 :param alpha: Tikhonov regularization of the filter
+:param window: Number of samples before recomputing the filter \
+               Set to None to only compute the filter once
+:data_type: Type of the training data. Either 'real' or 'complex'.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-import EOF_module as mod
-
-
+import empirical_orthogonal_functions as eof
 
 #Initialize the parameters
 grid_size = 20
 
-l = 5 
+l = 10 
 m = grid_size**2  
-n = 3  
+n = 4 
 delta_t = 1 
-window = 10 
-            
 
-alpha = 1e-3 
+alpha = 1e-2 
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
+  
+window = 5
+if window is not None:
+    already_computed = False 
+    moving_average = 0
+
+data_type = 'real'
 
 #Initialize the matrices 
   ## Uniform
 E0 = np.ones([grid_size,grid_size])  #We don't have access to this in reality
 data_matrix = np.zeros([m*n,l])
 a_posteriori_matrix = np.zeros([m,l])
+random_walk = np.zeros([grid_size,grid_size])
 
   ## Speckles
 center_1 = [5,5]
@@ -61,16 +67,11 @@ history_list = []
 E_measured_list = []
 E_hat_list = []
 MSE_list = []
-
-
-nb_hist = 0 
-random_walk = np.zeros([grid_size,grid_size])
-already_computed = False 
-moving_average = 0
-
 rms_diff_list=[]
 
-data_type = 'real'
+nb_hist = 0 
+
+
 
 # Estimation loop
 for iteration in range(200):
@@ -107,7 +108,7 @@ for iteration in range(200):
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = mod.filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type)
+        F = eof.filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type)
         already_computed = True
     
     # Estimate E if the filter has been computed
@@ -125,30 +126,30 @@ E_measured_list.reverse()
 
      ####Compute the MSE & Plot the prediction results (reordered lists)
 
-#for i in range(delta_t,len(E_hat_list)):
-#    plt.clf()
-#    diff = E_hat_list[i] - E_measured_list[i+l+n-2+delta_t]
-#    rms_diff = np.abs(diff)/np.abs(E_measured_list[i+l+n-2+delta_t])
-#    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
-#    MSE_list.append(squared_sum)
-#
-#    plt.subplot(131)
-#    plt.imshow(abs(E_measured_list[i+l+n-2+delta_t]), cmap='inferno')
-#    plt.title('Measured Field')
-#    plt.colorbar()
-#    
-#    plt.subplot(132)
-#    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
-#    plt.title('Estimated Field')
-#    plt.colorbar()
-#    
-#    plt.subplot(133)
-#    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
-#    plt.title('Estimation Error')
-#    plt.colorbar()
-#    
-#    plt.suptitle('Prediction Results, iteration {}'.format(i))
-#    plt.pause(0.1)
+for i in range(delta_t,len(E_hat_list)):
+    plt.clf()
+    diff = E_hat_list[i] - E_measured_list[i+l+n-2+delta_t]
+    rms_diff = np.abs(diff)/np.abs(E_measured_list[i+l+n-2+delta_t])
+    squared_sum = sum(sum(abs(diff)**2)) #Must account for F??
+    MSE_list.append(squared_sum)
+
+    plt.subplot(131)
+    plt.imshow(abs(E_measured_list[i+l+n-2+delta_t]), cmap='inferno')
+    plt.title('Measured Field')
+    plt.colorbar()
+    
+    plt.subplot(132)
+    plt.imshow(abs(E_hat_list[i]), cmap='inferno')
+    plt.title('Estimated Field')
+    plt.colorbar()
+    
+    plt.subplot(133)
+    plt.imshow(rms_diff, vmin=0, vmax=0.1, cmap='inferno')
+    plt.title('Estimation Error')
+    plt.colorbar()
+    
+    plt.suptitle('Prediction Results, iteration {}'.format(i))
+    plt.pause(0.1)
 
 
 
