@@ -1,37 +1,39 @@
 """Time series analysis using EOF_module.
-Implement the Empirical Orthogonal Functions from Guyon et al. 2017
-Compute the filter F from either a  moving matrix of concatenated history data.
+
+Implement the Empirical Orthogonal Functions from Guyon et al. 2017,
+compute the filter F from a matrix of concatenated history data that can be 
+regularly updated.
 
 :param l: Number of history vectors in data matrix
 :param m: Number of measurements in history vectors 
 :param n: Number of time samples in history vectors 
 :param delta_t: Delay between the phenomenom happening and acquisition
-:param window: Size of the window of the moving average
-:param alpha: Tiknhonov regularization of the filter
+:param window: Number of samples before recomputing the filter \
+               Can be set to arbitrarily large value if we don't want a MA
+:param alpha: Tikhonov regularization of the filter
 """
 
-#from hcipy import *
 import numpy as np
 import matplotlib.pyplot as plt
 import EOF_module as mod
 
 
 
-#Initialization of the parameters
+#Initialize the parameters
 grid_size = 20
 
-l = 5 #Nb of history vectors in data matrix
-m = grid_size**2  #Nb of measurements in each time sample
-n = 3  #Nb of time samples in a history vector
-delta_t = 1 #Temporal position of the wavefront we want to estimate
-window = 10 #Number of samples before recomputing the filter
-            #Can be set to arbitrarily large value if we don't want a MA
+l = 5 
+m = grid_size**2  
+n = 3  
+delta_t = 1 
+window = 10 
+            
 
-alpha = 1e-3 # Tikhonov regularization parameter
+alpha = 1e-3 
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
 
-#Initialization of the matrices 
+#Initialize the matrices 
   ## Uniform
 E0 = np.ones([grid_size,grid_size])  #We don't have access to this in reality
 data_matrix = np.zeros([m*n,l])
@@ -53,7 +55,7 @@ for row in range(planet.shape[0]):
 
 camera = planet + speckles 
 
-#Initialization of the lists
+#Initialize the lists
 history_current = []
 history_list = []
 E_measured_list = []
@@ -68,10 +70,12 @@ moving_average = 0
 
 rms_diff_list=[]
 
-#Estimation loop
+data_type = 'real'
+
+# Estimation loop
 for iteration in range(200):
     
-    #Update of E
+    # Update E
     random_walk += 0.05*np.random.normal(size=([grid_size,grid_size])) 
     #E = camera + random_walk + 0.1*np.random.poisson(abs(E0), size=([grid_size,grid_size]))#Drift
     E = camera + random_walk
@@ -80,7 +84,6 @@ for iteration in range(200):
     
     #E = E0 + 0.03*np.random.poisson(abs(E0), size=([grid_size,grid_size]))
 
-    
     #E = E0 + np.sin(iteration/(5*np.pi)) + 0.05*np.random.normal(size=([grid_size,grid_size]))
     #b =  0.03*np.random.normal(size=([grid_size,grid_size])) * np.roll(E0, -1, axis=1)
     #E = E0 + b
@@ -88,26 +91,26 @@ for iteration in range(200):
     E_measured_list.insert(0,E.copy())
     history_current = np.concatenate((E.copy().flatten(),history_current),axis=0)
         
-    #Construction of history vectors
+    # Construct history vectors
     if len(history_current) == m*n: #(>=)
         history_list.insert(0,history_current.copy())
         history_current = np.delete(history_current,range(len(history_current)-m,len(history_current)))
         nb_hist +=1
-    
-    #Check if we need to recompute the filter
+     
+    # Check if we need to recompute the filter
     if moving_average == window: 
         already_computed = False
         moving_average = 0
     
-    #Construction of the data matrix, a posteriori matrix and computing of the filter  
+    # Construct the data matrix, a posteriori matrix and compute the filter  
     if already_computed is False and nb_hist >= l+delta_t:
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = mod.filter_training_real(l,m,n,alpha,data_matrix,a_posteriori_matrix)
+        F = mod.filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type)
         already_computed = True
     
-    #Estimation of E if the filter has been computed
+    # Estimate E if the filter has been computed
     if already_computed is True:
         E_hat = F.dot(history_list[0]).reshape(grid_size,grid_size)
         E_hat_list.insert(0,E_hat.copy())
@@ -115,7 +118,7 @@ for iteration in range(200):
 
 
 
-#Reorder the lists
+# Reorder the lists
 E_hat_list.reverse() 
 E_measured_list.reverse()
 
@@ -150,7 +153,7 @@ E_measured_list.reverse()
 
 
 
-####Plot the Estimation for the first pixel
+# Plot the Estimation for the first pixel
 plt.clf()
 plt.plot(np.arange(l+n-2+delta_t,len(E_hat_list)+l+n-2+delta_t), [val[0][0] for val in E_hat_list], color='tab:orange', label = 'Estimated Electric Field', linewidth=1)
 plt.plot(np.arange(len(E_measured_list)), [val[0][0] for val in E_measured_list], color='tab:blue', label = 'Measured Electric Field', linewidth=1)
@@ -164,7 +167,7 @@ plt.show()
 
 
 
-#Compute the MSE
+# Compute the MSE
 if not(MSE_list):
     for i in range(delta_t,len(E_hat_list)):
         rms_diff = np.abs(E_hat_list[i] - E_measured_list[i+l+n-2+delta_t])#/np.abs(E_measured_list[i+l+n-2+delta_t])
@@ -175,7 +178,7 @@ if not(MSE_list):
 
 
 
-###Plot the MSE as a function of iterations
+# Plot the MSE as a function of iterations
 plt.clf()
 plt.plot(np.arange(l+n-2+delta_t,len(MSE_list)+l+n-2+delta_t), [np.log(val) for val in MSE_list], color='tab:orange', label = 'log(MSE)', linewidth=1)
 plt.plot(np.arange(len(E_measured_list)), [np.log(val[0][0]) for val in E_measured_list], color='tab:blue', label = 'log(Measured Electric Field)', linewidth=1)
@@ -196,7 +199,7 @@ plt.show()
      
      
      
-### Computing of the autocorrelation
+# Compute the autocorrelation
 autocorrelation_list = []
 for i in range(len(history_list)):
     a = sum([x * np.conj(y) for x, y in zip(history_list[0], history_list[i])]) 
@@ -204,7 +207,7 @@ for i in range(len(history_list)):
     
     #TO DO: Divide by nb points
     
-### Plot the autocorrelation
+# Plot the autocorrelation
 plt.clf()
 plt.plot(np.arange(len(autocorrelation_list)), [val for val in autocorrelation_list], color='tab:blue', linewidth=1)
 plt.ylabel('Autocorrelation [wf^2]')
