@@ -36,22 +36,17 @@ offset = 1
 efc_loop_gain = 1
 
 #Filter parameters initialization
-l = 10 
-m = 4  
-n = 10  
-temporal_lag = 1 
-alpha = 0 
+l = 3 
+#m = 4   #Chosen later
+n = 2 
+delta_t = 1 
+alpha = 1e-3 
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
-window = None
+window = 2
 already_computed = False 
 moving_average = 0
-  
-#Filter lists initialization
-history_current = []
-history_list = []
-E_measured_list = []
-E_hat_list = []
+nb_hist = 0 
 
 
 
@@ -64,12 +59,10 @@ aperture = circular_aperture(1)(pupil_grid)
 dark_zone = ((circular_aperture(2 * owa)(focal_grid) - circular_aperture(2 * iwa)(focal_grid)) * (focal_grid.x > offset)).astype(bool)
 
 
-
 # Create optical elements
 coronagraph = PerfectCoronagraph(aperture)
 
 remove_modes = make_zernike_basis(5, 1, pupil_grid, 2)
-history = make_zernike_basis(m, 1, focal_grid, 2)   ###
 
 aberration = SurfaceAberration(pupil_grid, 0.1, 1, aperture=aperture, remove_modes=remove_modes)
 
@@ -101,7 +94,7 @@ def get_intensity(actuators=None):
 
 
 
-# Creating Jacobian matrix
+# Create Jacobian matrix
 responses = []
 amps = np.linspace(-epsilon, epsilon, 2)
 
@@ -116,7 +109,7 @@ for i, mode in enumerate(np.eye(len(influence_functions))):
 	response = response[dark_zone]
 
 	responses.append(np.concatenate((response.real, response.imag)))
-    
+
     
     
 # Calculate EFC matrix
@@ -127,6 +120,22 @@ efc_matrix = inverse_tikhonov(response_matrix, 1e-3)
 
 # Run EFC loop
 current_actuators = np.zeros(len(influence_functions))
+est_actuators = np.zeros(len(influence_functions))
+
+#m = sum(dark_zone) #Estimate E for every pixel in dark zone
+m = len(current_actuators)
+
+
+#Filter lists initialization (after grids because we need the size of dark_zone/len actuators)
+data_matrix = np.zeros([m*n,l])
+a_posteriori_matrix = np.zeros([m,l])
+history_current = []
+history_list = []
+E_measured_list = []
+E_hat_list = []
+MSE_list = []
+rms_diff_list=[]
+
 
 for i in range(200):
     E = get_electric_field(current_actuators)[dark_zone]
@@ -134,10 +143,10 @@ for i in range(200):
     
     y = efc_matrix.dot(x)
     current_actuators -= efc_loop_gain * y
-    	
-    img = get_intensity(current_actuators)
     
-    #ADDED
+    E = current_actuators
+    
+    #Run EOF loop on E (data_type = 'complex') or on actuators (data_type = 'real') ????
     E_measured_list.insert(0,E.copy())
     history_current = np.concatenate((E.copy().flatten(),history_current),axis=0)
         
@@ -158,17 +167,46 @@ for i in range(200):
         for i in range(l):
             data_matrix[:,i] = history_list[i+delta_t]
             a_posteriori_matrix[:,i] = E_measured_list[i].flatten()
-        F = eof.filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='complex')
+        F = eof.filter_training(l,m,n,alpha,data_matrix,a_posteriori_matrix,data_type='real') 
         already_computed = True
     
     #Estimation of E if the filter has been computed
     if already_computed is True:
-        E_hat = F.dot(history_list[0]).reshape(grid_size,grid_size)
+        E_hat = F.dot(history_list[0])#.reshape(grid_size,grid_size)
         E_hat_list.insert(0,E_hat.copy())
         moving_average += 1
+    
+    
+    img = get_intensity(current_actuators)
+    
+    if already_computed:
         
-    plt.clf()
-    imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
-    plt.colorbar()
-    plt.draw()
-    plt.pause(0.1)
+        E = get_electric_field(E_hat)[dark_zone]
+        x = np.concatenate((E.real, E.imag))
+    
+        y = efc_matrix.dot(x)
+        est_actuators -= efc_loop_gain * y
+        est = get_intensity(est_actuators)
+        
+        plt.clf()
+        plt.subplot(121)
+        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+        plt.colorbar()
+        plt.title('Without estimation')
+        plt.draw()
+        
+        plt.subplot(122)
+        imshow_field(np.log10(est), vmin=-10, vmax=-5, cmap='inferno')
+        plt.colorbar()
+        plt.title('With estimation')
+        plt.draw()
+        plt.pause(0.1)
+    
+    else:
+        plt.clf()
+        plt.subplot(121)
+        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+        plt.colorbar()
+        plt.title('Without estimation')
+        plt.draw()
+        plt.pause(0.1)
