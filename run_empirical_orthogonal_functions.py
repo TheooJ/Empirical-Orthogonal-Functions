@@ -34,6 +34,7 @@ if alpha < 0:
 window = None
 already_computed = False 
 moving_average = 0
+nb_hist = 0 
 
 data_type = 'real'
 
@@ -68,7 +69,6 @@ E_hat_list = []
 MSE_list = []
 rms_diff_list=[]
 
-nb_hist = 0 
 
 
 
