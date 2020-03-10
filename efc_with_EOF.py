@@ -196,7 +196,8 @@ for i in range(300):
         plt.draw()        
         
         plt.subplot(122)
-        imshow_field(np.log10(estimate/observation_time), cmap='inferno')
+       # imshow_field(np.log10(estimate/observation_time), vmin=-9, vmax=-3, cmap='inferno')
+        imshow_field(np.log10(np.abs(estimate/observation_time)**2), vmin=-10, vmax=-5, cmap='inferno')
         plt.colorbar()
         plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
@@ -210,6 +211,7 @@ for i in range(300):
 #        plt.pause(0.1)
         
         E_avg = np.zeros([sum(dark_zone)], dtype=complex)
+        E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
         count +=1
 
     
