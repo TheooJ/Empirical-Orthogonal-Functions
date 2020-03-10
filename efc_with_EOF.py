@@ -131,54 +131,83 @@ rms_diff_list=[]
 est_actuators = np.zeros(sum(dark_zone))
 
 
-
-#Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
-while ( sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) > -10 ):
-    E = get_electric_field(current_actuators)[dark_zone]
-    x = np.concatenate((E.real, E.imag))
-    
-    y = efc_matrix.dot(x)
-    current_actuators -= efc_loop_gain * y
-    	
-    img = get_intensity(current_actuators)
-    
-    plt.clf()
-    imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
-    plt.title('Dark hole creation')
-    plt.colorbar()
-    plt.draw()
-    plt.pause(0.1)
-    
-
     
 #Initialize drift parameters
+created_dark_hole = False
 random_walk = np.zeros([sum(dark_zone)])
 E_avg = np.zeros([sum(dark_zone)], dtype=complex)
+E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
 observation_time=20
 count = 0
 
-#Dark hole maintenance with drifting phase on electric field
-for i in range(200):
+
+
+#Run EFC loop
+for i in range(300):
+    #Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
+    while ( sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) > -9 ) and created_dark_hole is False:
+        E = get_electric_field(current_actuators)[dark_zone]
+        x = np.concatenate((E.real, E.imag))
+        
+        y = efc_matrix.dot(x)
+        current_actuators -= efc_loop_gain * y
+        	
+        img = get_intensity(current_actuators)
+        
+        plt.clf()
+        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+        plt.title('Dark hole creation, iteration {}'.format(i))
+        plt.colorbar()
+        plt.draw()
+        plt.pause(0.1)
+        
+        if sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) < -9 :
+            created_dark_hole = True
+            E_no_correction  = get_electric_field(current_actuators)[dark_zone]
+        
+    #Dark hole maintenance with drifting phase on electric field
     if i < observation_time*(count+1):
         E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL
         random_walk += 0.03*np.random.normal(size=([sum(dark_zone)]))
         E *= np.exp(1j * random_walk)
+        E_no_correction  *= np.exp(1j * random_walk)
         
         #Averaging over the time frames
         E_avg += E
+        E_no_correction_avg += E_no_correction
     
     else:
         x = np.concatenate((E_avg.real/observation_time, E_avg.imag/observation_time))
         y = efc_matrix.dot(x)
         current_actuators -= efc_loop_gain * y
         img = get_intensity(current_actuators)
-            
+        img_no_correction = np.abs(E_no_correction)**2
+        
+        
+        #PLOTTING TRICK
+        estimate = Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
+        estimate[dark_zone] = E_no_correction_avg
+        
         plt.clf()
+        plt.subplot(121)
         imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
-        plt.title('Dark hole maintenance with additive drift, images averaged on {} frames'.format(observation_time))
+        plt.title('Dark hole maintenance with additive drift \n images averaged on {} frames, iteration {}'.format(observation_time,i))
         plt.colorbar()
+        plt.draw()        
+        
+        plt.subplot(122)
+        imshow_field(np.log10(estimate/observation_time), cmap='inferno')
+        plt.colorbar()
+        plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
         plt.pause(0.1)
+            
+#        plt.clf()
+#        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+#        plt.title('Dark hole maintenance with additive drift \n images averaged on {} frames, iteration {}'.format(observation_time,i))
+#        plt.colorbar()
+#        plt.draw()
+#        plt.pause(0.1)
         
         E_avg = np.zeros([sum(dark_zone)], dtype=complex)
         count +=1
