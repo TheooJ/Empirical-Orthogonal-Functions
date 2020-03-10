@@ -140,6 +140,9 @@ E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
 observation_time=20
 count = 0
 
+contrast_corrected_list = []
+contrast_uncorrected_list = []
+
 
 
 #Run EFC loop
@@ -161,14 +164,17 @@ for i in range(300):
         plt.draw()
         plt.pause(0.1)
         
+        
         if sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) < -9 :
             created_dark_hole = True
             E_no_correction  = get_electric_field(current_actuators)[dark_zone]
+            
+        
         
     #Dark hole maintenance with drifting phase on electric field
     if i < observation_time*(count+1):
         E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL
-        random_walk += 0.03*np.random.normal(size=([sum(dark_zone)]))
+        random_walk += 0.1*np.random.normal(size=([sum(dark_zone)]))
         E *= np.exp(1j * random_walk)
         E_no_correction  *= np.exp(1j * random_walk)
         
@@ -213,6 +219,14 @@ for i in range(300):
         E_avg = np.zeros([sum(dark_zone)], dtype=complex)
         E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
         count +=1
+        
+        contrast_corrected_list.append(sum(img))
+        contrast_uncorrected_list.append(sum(np.abs(estimate/observation_time)**2))
+
+
+plt.clf()
+plt.plot(contrast_corrected_list, color='tab:orange', label = 'Corrected contrast', linewidth=1)
+plt.plot(contrast_uncorrected_list, color='tab:blue', label = 'Uncorrected contrast', linewidth=1)
 
     
 #    
