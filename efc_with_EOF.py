@@ -136,8 +136,11 @@ est_actuators = np.zeros(sum(dark_zone))
 created_dark_hole = False
 random_walk = np.zeros([sum(dark_zone)])
 E_avg = np.zeros([sum(dark_zone)], dtype=complex)
+I_avg = np.zeros([sum(dark_zone)], dtype=complex)
+
 E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
-observation_time = 4
+I_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
+observation_time = 1
 count = 0
 
 contrast_corrected_list = []
@@ -160,22 +163,22 @@ for i in range(100):
         plt.title('Dark hole creation')
         plt.colorbar()
         plt.draw()
-        plt.pause(0.1)
+        plt.pause(0.05)
                 
         if np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) < -9 :
             created_dark_hole = True
             E_no_correction  = get_electric_field(current_actuators)[dark_zone]
         
     #Dark hole maintenance with drifting phase on electric field
-    if i <= observation_time*(count+1):
-        E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL
-        random_walk += 0.1*np.random.normal(size=([sum(dark_zone)]))
+    if i < observation_time*(count+1):
+        E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL -> Pairwise
+        random_walk += 0.03*np.random.normal(size=([sum(dark_zone)]))
         E *= np.exp(1j * random_walk)
         E_no_correction  *= np.exp(1j * random_walk)
         
         #Averaging over the time frames
-        E_avg += E
-        E_no_correction_avg += E_no_correction
+        I_avg += np.abs(E)**2
+        I_no_correction_avg += np.abs(E_no_correction)**2
     
     else:
         x = np.concatenate((E_avg.real/observation_time, E_avg.imag/observation_time))
@@ -184,12 +187,12 @@ for i in range(100):
         img = get_intensity(current_actuators)
         img_no_correction = np.abs(E_no_correction)**2
         
-        #PLOTTING TRICK
+        #Plotting trick
         estimate = hcipy.Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
-        estimate[dark_zone] = E_no_correction_avg
+        estimate[dark_zone] = I_no_correction_avg
         
-        contrast_corrected_list.append(np.mean(img[dark_zone]))
-        contrast_uncorrected_list.append(np.mean(np.abs(estimate/observation_time)**2))
+        contrast_corrected_list.append(np.log10(np.mean(img[dark_zone])))
+        contrast_uncorrected_list.append(np.log10(np.mean(np.abs(estimate/observation_time)**2)))
         
         plt.clf()
         plt.subplot(121)
@@ -200,11 +203,11 @@ for i in range(100):
         
         plt.subplot(122)
        # imshow_field(np.log10(estimate/observation_time), vmin=-9, vmax=-3, cmap='inferno')
-        hcipy.imshow_field(np.log10(np.abs(estimate/observation_time)**2), vmin=-10, vmax=-5, cmap='inferno')
+        hcipy.imshow_field(estimate/observation_time, cmap='inferno')
         plt.colorbar()
         plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
-        plt.pause(0.1)
+        #plt.pause(0.1)
             
 #        plt.clf()
 #        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
@@ -219,8 +222,8 @@ for i in range(100):
         
 
 plt.clf()
-plt.plot(np.log10(contrast_corrected_list), color='tab:orange', label = 'Corrected contrast', linewidth=1)
-plt.plot(np.log10(contrast_uncorrected_list), color='tab:blue', label = 'Uncorrected contrast', linewidth=1)
+plt.plot(contrast_corrected_list, color='tab:blue', label = 'Corrected contrast', linewidth=1)
+plt.plot(contrast_uncorrected_list, color='tab:orange', label = 'Uncorrected contrast', linewidth=1)
 plt.legend(bbox_to_anchor = (1, 1), loc = 'right', prop = {'size': 7})
 plt.show()
 
