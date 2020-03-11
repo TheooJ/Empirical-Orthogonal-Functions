@@ -18,7 +18,7 @@ Filter parameters:
 :data_type: Type of the training data. Either 'real' or 'complex'.
 """
 
-from hcipy import *
+import hcipy
 import numpy as np
 import matplotlib.pyplot as plt
 import empirical_orthogonal_functions as eof
@@ -38,23 +38,23 @@ efc_loop_gain = 1
 
 
 # Create grids
-pupil_grid = make_pupil_grid(128) 
-focal_grid = make_focal_grid(4, 16) 
-prop = FraunhoferPropagator(pupil_grid, focal_grid)
+pupil_grid = hcipy.make_pupil_grid(128) 
+focal_grid = hcipy.make_focal_grid(4, 16) 
+prop = hcipy.FraunhoferPropagator(pupil_grid, focal_grid)
 
-aperture = circular_aperture(1)(pupil_grid)
-dark_zone = ((circular_aperture(2 * owa)(focal_grid) - circular_aperture(2 * iwa)(focal_grid)) * (focal_grid.x > offset)).astype(bool)
+aperture = hcipy.circular_aperture(1)(pupil_grid)
+dark_zone = ((hcipy.circular_aperture(2 * owa)(focal_grid) - hcipy.circular_aperture(2 * iwa)(focal_grid)) * (focal_grid.x > offset)).astype(bool)
 
 
 # Create optical elements
-coronagraph = PerfectCoronagraph(aperture)
+coronagraph = hcipy.PerfectCoronagraph(aperture)
 
-remove_modes = make_zernike_basis(5, 1, pupil_grid, 2)
+remove_modes = hcipy.make_zernike_basis(5, 1, pupil_grid, 2)
 
-aberration = SurfaceAberration(pupil_grid, 0.1, 1, aperture=aperture, remove_modes=remove_modes)
+aberration = hcipy.SurfaceAberration(pupil_grid, 0.1, 1, aperture=aperture, remove_modes=remove_modes)
 
-influence_functions = make_xinetics_influence_functions(pupil_grid, num_actuators_across, actuator_spacing)
-deformable_mirror = DeformableMirror(influence_functions)
+influence_functions = hcipy.make_xinetics_influence_functions(pupil_grid, num_actuators_across, actuator_spacing)
+deformable_mirror = hcipy.DeformableMirror(influence_functions)
 
 
 
@@ -63,7 +63,7 @@ def get_electric_field(actuators=None):
 	if actuators is not None:
 		deformable_mirror.actuators = actuators
 
-	wf = Wavefront(aperture) ###drift
+	wf = hcipy.Wavefront(aperture) ###drift
 	img = prop(coronagraph(deformable_mirror(aberration(wf))))
 	img_nocoro = prop(deformable_mirror(aberration(wf)))
 	
@@ -73,7 +73,7 @@ def get_intensity(actuators=None):
 	if actuators is not None:
 		deformable_mirror.actuators = actuators
 	
-	wf = Wavefront(aperture)
+	wf = hcipy.Wavefront(aperture)
 	img = prop(coronagraph(deformable_mirror(aberration(wf))))
 	img_nocoro = prop(deformable_mirror(aberration(wf)))
 	
@@ -101,7 +101,7 @@ for i, mode in enumerate(np.eye(len(influence_functions))):
     
 # Calculate EFC matrix
 response_matrix = np.array(responses).T
-efc_matrix = inverse_tikhonov(response_matrix, 1e-3)
+efc_matrix = hcipy.inverse_tikhonov(response_matrix, 1e-3)
 
 current_actuators = np.zeros(len(influence_functions))
 
@@ -142,8 +142,6 @@ count = 0
 
 contrast_corrected_list = []
 contrast_uncorrected_list = []
-contrast_dark_hole = []
-
 
 #Run EFC loop
 for i in range(100):
@@ -158,14 +156,12 @@ for i in range(100):
         img = get_intensity(current_actuators)
         
         plt.clf()
-        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+        hcipy.imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
         plt.title('Dark hole creation')
         plt.colorbar()
         plt.draw()
         plt.pause(0.1)
-        
-        contrast_dark_hole.append(np.mean(img[dark_zone]))
-        
+                
         if np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) < -9 :
             created_dark_hole = True
             E_no_correction  = get_electric_field(current_actuators)[dark_zone]
@@ -189,7 +185,7 @@ for i in range(100):
         img_no_correction = np.abs(E_no_correction)**2
         
         #PLOTTING TRICK
-        estimate = Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
+        estimate = hcipy.Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
         estimate[dark_zone] = E_no_correction_avg
         
         contrast_corrected_list.append(np.mean(img[dark_zone]))
@@ -197,14 +193,14 @@ for i in range(100):
         
         plt.clf()
         plt.subplot(121)
-        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
+        hcipy.imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
         plt.title('Dark hole maintenance with additive drift \n images averaged on {} frames, iteration {}'.format(observation_time,i))
         plt.colorbar()
         plt.draw()        
         
         plt.subplot(122)
        # imshow_field(np.log10(estimate/observation_time), vmin=-9, vmax=-3, cmap='inferno')
-        imshow_field(np.log10(np.abs(estimate/observation_time)**2), vmin=-10, vmax=-5, cmap='inferno')
+        hcipy.imshow_field(np.log10(np.abs(estimate/observation_time)**2), vmin=-10, vmax=-5, cmap='inferno')
         plt.colorbar()
         plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
@@ -221,10 +217,6 @@ for i in range(100):
         E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
         count +=1
         
-
-plt.clf()
-plt.plot(np.log10(contrast_dark_hole), color='tab:orange', label = 'Dark hole creation', linewidth=1)
-plt.show()
 
 plt.clf()
 plt.plot(np.log10(contrast_corrected_list), color='tab:orange', label = 'Corrected contrast', linewidth=1)
