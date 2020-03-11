@@ -137,18 +137,18 @@ created_dark_hole = False
 random_walk = np.zeros([sum(dark_zone)])
 E_avg = np.zeros([sum(dark_zone)], dtype=complex)
 E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
-observation_time=20
+observation_time = 4
 count = 0
 
 contrast_corrected_list = []
 contrast_uncorrected_list = []
-
+contrast_dark_hole = []
 
 
 #Run EFC loop
-for i in range(300):
+for i in range(100):
     #Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
-    while ( sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) > -9 ) and created_dark_hole is False:
+    while ( np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) > -9 ) and created_dark_hole is False:
         E = get_electric_field(current_actuators)[dark_zone]
         x = np.concatenate((E.real, E.imag))
         
@@ -159,20 +159,19 @@ for i in range(300):
         
         plt.clf()
         imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
-        plt.title('Dark hole creation, iteration {}'.format(i))
+        plt.title('Dark hole creation')
         plt.colorbar()
         plt.draw()
         plt.pause(0.1)
         
+        contrast_dark_hole.append(np.mean(img[dark_zone]))
         
-        if sum(np.log10(get_intensity(current_actuators)[dark_zone]))/sum(dark_zone) < -9 :
+        if np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) < -9 :
             created_dark_hole = True
             E_no_correction  = get_electric_field(current_actuators)[dark_zone]
-            
-        
         
     #Dark hole maintenance with drifting phase on electric field
-    if i < observation_time*(count+1):
+    if i <= observation_time*(count+1):
         E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL
         random_walk += 0.1*np.random.normal(size=([sum(dark_zone)]))
         E *= np.exp(1j * random_walk)
@@ -189,10 +188,12 @@ for i in range(300):
         img = get_intensity(current_actuators)
         img_no_correction = np.abs(E_no_correction)**2
         
-        
         #PLOTTING TRICK
         estimate = Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
         estimate[dark_zone] = E_no_correction_avg
+        
+        contrast_corrected_list.append(np.mean(img[dark_zone]))
+        contrast_uncorrected_list.append(np.mean(np.abs(estimate/observation_time)**2))
         
         plt.clf()
         plt.subplot(121)
@@ -220,13 +221,16 @@ for i in range(300):
         E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
         count +=1
         
-        contrast_corrected_list.append(sum(img))
-        contrast_uncorrected_list.append(sum(np.abs(estimate/observation_time)**2))
-
 
 plt.clf()
-plt.plot(contrast_corrected_list, color='tab:orange', label = 'Corrected contrast', linewidth=1)
-plt.plot(contrast_uncorrected_list, color='tab:blue', label = 'Uncorrected contrast', linewidth=1)
+plt.plot(np.log10(contrast_dark_hole), color='tab:orange', label = 'Dark hole creation', linewidth=1)
+plt.show()
+
+plt.clf()
+plt.plot(np.log10(contrast_corrected_list), color='tab:orange', label = 'Corrected contrast', linewidth=1)
+plt.plot(np.log10(contrast_uncorrected_list), color='tab:blue', label = 'Uncorrected contrast', linewidth=1)
+plt.legend(bbox_to_anchor = (1, 1), loc = 'right', prop = {'size': 7})
+plt.show()
 
     
 #    
