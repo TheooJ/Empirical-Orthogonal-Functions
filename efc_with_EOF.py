@@ -63,7 +63,7 @@ def get_electric_field(actuators=None):
 	if actuators is not None:
 		deformable_mirror.actuators = actuators
 
-	wf = hcipy.Wavefront(aperture) ###drift
+	wf = hcipy.Wavefront(aperture) 
 	img = prop(coronagraph(deformable_mirror(aberration(wf))))
 	img_nocoro = prop(deformable_mirror(aberration(wf)))
 	
@@ -80,6 +80,16 @@ def get_intensity(actuators=None):
 	return img.intensity / img_nocoro.intensity.max()
 
 
+def get_noisy_electric_field(actuators=None):
+    if actuators is not None:
+        deformable_mirror.actuators = actuators
+        
+    random_walk = hcipy.Field(0.001*np.random.normal(size=aperture.size), aperture) * 1j
+    wf = hcipy.Wavefront(aperture*np.exp(random_walk))
+    img = prop(coronagraph(deformable_mirror(aberration(wf))))
+    img_nocoro = prop(deformable_mirror(aberration(wf))) 
+	
+    return img.electric_field / np.abs(img_nocoro.electric_field).max()
 
 # Create Jacobian matrix
 responses = []
@@ -140,14 +150,14 @@ I_avg = np.zeros([sum(dark_zone)], dtype=complex)
 
 E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
 I_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
-observation_time = 1
+observation_time = 10
 count = 0
 
 contrast_corrected_list = []
 contrast_uncorrected_list = []
 
 #Run EFC loop
-for i in range(100):
+for i in range(150):
     #Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
     while ( np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) > -9 ) and created_dark_hole is False:
         E = get_electric_field(current_actuators)[dark_zone]
@@ -171,8 +181,8 @@ for i in range(100):
         
     #Dark hole maintenance with drifting phase on electric field
     if i < observation_time*(count+1):
-        E = get_electric_field(current_actuators)[dark_zone] #Not accessible IRL -> Pairwise
-        random_walk += 0.03*np.random.normal(size=([sum(dark_zone)]))
+        E = get_noisy_electric_field(current_actuators)[dark_zone] #Not accessible IRL -> Pairwise
+        random_walk += 0.1*np.random.normal(size=([sum(dark_zone)]))
         E *= np.exp(1j * random_walk)
         E_no_correction  *= np.exp(1j * random_walk)
         
@@ -207,7 +217,7 @@ for i in range(100):
         plt.colorbar()
         plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
-        #plt.pause(0.1)
+        plt.pause(0.1)
             
 #        plt.clf()
 #        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
