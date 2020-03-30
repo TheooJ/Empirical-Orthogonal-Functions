@@ -16,6 +16,11 @@ Filter parameters:
 :param window: Number of samples before recomputing the filter \
                Set to None to only compute the filter once
 :data_type: Type of the training data. Either 'real' or 'complex'.
+
+TODO:
+    Add Pairwise estimation on averaged intensity
+    Create Function to add the same noise
+    
 """
 
 import hcipy
@@ -80,16 +85,25 @@ def get_intensity(actuators=None):
 	return img.intensity / img_nocoro.intensity.max()
 
 
-def get_noisy_electric_field(actuators=None):
+def get_noisy_electric_field(random_walk, actuators=None):
     if actuators is not None:
         deformable_mirror.actuators = actuators
         
-    random_walk = hcipy.Field(0.001*np.random.normal(size=aperture.size), aperture) * 1j
-    wf = hcipy.Wavefront(aperture*np.exp(random_walk))
+    wf = hcipy.Wavefront(aperture*np.exp(1j * random_walk))
     img = prop(coronagraph(deformable_mirror(aberration(wf))))
     img_nocoro = prop(deformable_mirror(aberration(wf))) 
 	
     return img.electric_field / np.abs(img_nocoro.electric_field).max()
+
+
+
+# Define function for plotting
+def reshape_dark_hole_to_aperture(vector):
+    """ Convert intensity 1D vector to a 2D grid on the focal plane, with zero padding as needed """
+    estimate = hcipy.Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
+    estimate[dark_zone] = vector
+    return estimate
+
 
 # Create Jacobian matrix
 responses = []
@@ -107,8 +121,7 @@ for i, mode in enumerate(np.eye(len(influence_functions))):
 
 	responses.append(np.concatenate((response.real, response.imag)))
 
-    
-    
+
 # Calculate EFC matrix
 response_matrix = np.array(responses).T
 efc_matrix = hcipy.inverse_tikhonov(response_matrix, 1e-3)
@@ -116,9 +129,43 @@ efc_matrix = hcipy.inverse_tikhonov(response_matrix, 1e-3)
 current_actuators = np.zeros(len(influence_functions))
 
 
-#Filter parameters initialization
+
+# Create probes
+probes = []
+
+for i in range(4):
+    values = np.sinc(owa * pupil_grid.x) * np.sinc(2 * owa * pupil_grid.y) \
+    * np.cos(2 * np.pi * owa / 2 * pupil_grid.x + i * np.pi / 4)
+    probes.append( hcipy.Field(values, pupil_grid) )
+    
+#fig, axs = plt.subplots(2,2) 
+##axs = axs.ravel()
+#
+#for i in range(4):
+#    axs[i] = hcipy.imshow_field(probes[i])
+#plt.show()
+
+#for i in range(4):
+#    plt.subplot(2,2,i+1)
+#    hcipy.imshow_field(probes[i])
+#plt.show()  
+    
+    
+def probes_test(actuators=None):
+	if actuators is not None:
+		deformable_mirror.actuators = actuators
+	
+	wf = hcipy.Wavefront(aperture)
+	img = prop(coronagraph(aberration(wf)))
+	img_nocoro = prop(aberration(wf))
+	
+	return img.intensity / img_nocoro.intensity.max()
+
+
+
+# Filter parameters initialization
 l = 3 
-m = sum(dark_zone) #Estimate E for every pixel in dark zone
+m = sum(dark_zone) # Estimate E for every pixel in dark zone
 n = 2 
 delta_t = 1 
 alpha = 1e-3 
@@ -129,7 +176,9 @@ already_computed = False
 moving_average = 0
 nb_hist = 0 
 
-#Filter lists initialization (after grids because we need the size of dark_zone/len actuators)
+
+
+# Filter lists initialization (after grids because we need the size of dark_zone/len actuators)
 data_matrix = np.zeros([m*n,l])
 a_posteriori_matrix = np.zeros([m,l])
 history_current = []
@@ -142,23 +191,24 @@ est_actuators = np.zeros(sum(dark_zone))
 
 
     
-#Initialize drift parameters
+# Initialize drift parameters
 created_dark_hole = False
-random_walk = np.zeros([sum(dark_zone)])
-E_avg = np.zeros([sum(dark_zone)], dtype=complex)
-I_avg = np.zeros([sum(dark_zone)], dtype=complex)
+random_walk = hcipy.Field(np.zeros(aperture.size, dtype='complex'), aperture)
 
-E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
-I_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
-observation_time = 10
+E_avg = np.zeros([sum(dark_zone)], dtype='complex')
+E_no_correction_avg = np.zeros([sum(dark_zone)], dtype='complex')
+
+observation_time = 2
 count = 0
 
 contrast_corrected_list = []
 contrast_uncorrected_list = []
 
-#Run EFC loop
-for i in range(150):
-    #Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
+
+
+# Run EFC loop
+for i in range(100):
+    # Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligeable noise regime)
     while ( np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) > -9 ) and created_dark_hole is False:
         E = get_electric_field(current_actuators)[dark_zone]
         x = np.concatenate((E.real, E.imag))
@@ -177,32 +227,26 @@ for i in range(150):
                 
         if np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) < -9 :
             created_dark_hole = True
-            E_no_correction  = get_electric_field(current_actuators)[dark_zone]
+            fixed_actuators = current_actuators
         
-    #Dark hole maintenance with drifting phase on electric field
+    # Dark hole maintenance with drifting phase on electric field
     if i < observation_time*(count+1):
-        E = get_noisy_electric_field(current_actuators)[dark_zone] #Not accessible IRL -> Pairwise
-        random_walk += 0.1*np.random.normal(size=([sum(dark_zone)]))
-        E *= np.exp(1j * random_walk)
-        E_no_correction  *= np.exp(1j * random_walk)
-        
-        #Averaging over the time frames
-        I_avg += np.abs(E)**2
-        I_no_correction_avg += np.abs(E_no_correction)**2
+        random_walk += hcipy.Field(0.0001*np.random.normal(size=aperture.size), aperture)
+        E = get_noisy_electric_field(random_walk, current_actuators)[dark_zone]
+        E_no_correction  = get_noisy_electric_field(random_walk, fixed_actuators)[dark_zone]
+        # Averaging over the time frames
+        E_avg += E
+        E_no_correction_avg += E_no_correction
     
     else:
-        x = np.concatenate((E_avg.real/observation_time, E_avg.imag/observation_time))
+        # Pairwise here to get E from I
+        x = np.concatenate((E.real, E.imag))
         y = efc_matrix.dot(x)
         current_actuators -= efc_loop_gain * y
         img = get_intensity(current_actuators)
         img_no_correction = np.abs(E_no_correction)**2
         
-        #Plotting trick
-        estimate = hcipy.Field(np.zeros(focal_grid.size, dtype='complex'), focal_grid)
-        estimate[dark_zone] = I_no_correction_avg
-        
-        contrast_corrected_list.append(np.log10(np.mean(img[dark_zone])))
-        contrast_uncorrected_list.append(np.log10(np.mean(np.abs(estimate/observation_time)**2)))
+        estimate = reshape_dark_hole_to_aperture(E_no_correction_avg)
         
         plt.clf()
         plt.subplot(121)
@@ -212,23 +256,19 @@ for i in range(150):
         plt.draw()        
         
         plt.subplot(122)
-       # imshow_field(np.log10(estimate/observation_time), vmin=-9, vmax=-3, cmap='inferno')
         hcipy.imshow_field(estimate/observation_time, cmap='inferno')
         plt.colorbar()
         plt.title('Dark hole drift, iteration {}'.format(i))
         plt.draw()
         plt.pause(0.1)
-            
-#        plt.clf()
-#        imshow_field(np.log10(img), vmin=-10, vmax=-5, cmap='inferno')
-#        plt.title('Dark hole maintenance with additive drift \n images averaged on {} frames, iteration {}'.format(observation_time,i))
-#        plt.colorbar()
-#        plt.draw()
-#        plt.pause(0.1)
         
-        E_avg = np.zeros([sum(dark_zone)], dtype=complex)
-        E_no_correction_avg = np.zeros([sum(dark_zone)], dtype=complex)
+        contrast_corrected_list.append(np.log10(np.mean(img[dark_zone])))
+        contrast_uncorrected_list.append(np.log10(np.mean(estimate)))
+        
+        E_avg = np.zeros([sum(dark_zone)], dtype='complex')
+        E_no_correction_avg = np.zeros([sum(dark_zone)], dtype='complex')
         count +=1
+        
         
 
 plt.clf()
@@ -238,8 +278,8 @@ plt.legend(bbox_to_anchor = (1, 1), loc = 'right', prop = {'size': 7})
 plt.show()
 
     
-#    
-##Drifting dark hole maintenance with Pairwise and extrapolation with EFC
+    
+## Drifting dark hole maintenance with Pairwise and extrapolation with EFC
 #for i in range(200):
 #    E = get_electric_field(current_actuators)[dark_zone]
 #    x = np.concatenate((E.real, E.imag))
