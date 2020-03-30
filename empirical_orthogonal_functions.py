@@ -4,7 +4,7 @@ import numpy as np
 """Module for Empirical Orthogonal Functions.
 
 Functions are:
-    filter_training: compute the filter with real data , return the filter
+    filter_training: compute the filter with real or complex data, return the filter
 """
 
 
@@ -129,3 +129,32 @@ def filter_training_moving_average(l,m,n,alpha,window,data_matrix,history_new,a_
 
     
     return filter_MA,data_matrix,a_posteriori_matrix
+
+
+#TO DO: prendre les probes en entrée, et non le vecteur de réponses
+    
+def pairwise_estimation(response_vector, intensity_vector):
+    """Function to compute the electric field using pairwise.
+    
+    :param response_matrix: Response matrix to probes
+    :param intensity_vector: Observed intensity vector.
+        
+    Return the electric field vector at one pixel.
+    """
+          
+#    I_pos
+#    
+#    I_neg
+#    
+#    I_deltas
+    
+    response_matrix = np.concatenate((response_vector.real, response_vector.imag), axis=1)
+    electric_field_vector = np.linalg.pinv(response_matrix).dot(intensity_vector)
+    
+    return electric_field_vector
+    
+    
+
+    
+    
+    
