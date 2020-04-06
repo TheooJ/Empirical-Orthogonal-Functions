@@ -61,7 +61,7 @@ def get_intensity(actuators=None):
 	
 	return img.intensity / img_nocoro.intensity.max()
 
-# Define function to simulate random walk
+# Define functions to simulate random walk
 def get_noisy_electric_field(random_walk, actuators=None):
 	if actuators is not None:
 		deformable_mirror.actuators = actuators
@@ -71,6 +71,16 @@ def get_noisy_electric_field(random_walk, actuators=None):
 	img_nocoro = prop(deformable_mirror(aberration(wf))) 
 	
 	return img.electric_field / np.abs(img_nocoro.electric_field).max()
+
+def get_noisy_intensity(random_walk, actuators=None):
+	if actuators is not None:
+		deformable_mirror.actuators = actuators
+	
+	wf = hcipy.Wavefront(aperture*np.exp(random_walk * 1j))
+	img = prop(coronagraph(deformable_mirror(aberration(wf))))
+	img_nocoro = prop(deformable_mirror(aberration(wf))) 
+	
+	return img.intensity / img_nocoro.intensity.max()
 
 # Define function for plotting an electric field on the focal grid
 def reshape_dark_hole_to_aperture(vector):
@@ -114,14 +124,14 @@ current_actuators = np.zeros(len(influence_functions))
 
 
 # Filter parameters initialization
-l = 5 
+l = 2
 m = sum(dark_zone) # Estimate E for every pixel in dark zone
-n = 3 
+n = 2 
 delta_t = 1 
 alpha = 0
 if alpha < 0:
   raise Exception("Sorry, regularization parameter must be positive of null") 
-window = None
+window = 4
 already_computed = False 
 moving_average = 0
 nb_hist = 0 
@@ -194,15 +204,13 @@ for iter in range(50):
     
     #Estimation of E if the filter has been computed
     if already_computed:
-        E_hat = F.dot(history_list[0])#.reshape(grid_size,grid_size)
+        E_hat = F.dot(history_list[0])
         E_hat_list.insert(0,E_hat.copy())
-        
         I_hat = np.abs(E_hat)**2 
-        estimate = reshape_dark_hole_to_aperture_intensity(I_hat)
-                
-        I_actual_energy = np.linalg.norm(img) ** 2
+        estimate = reshape_dark_hole_to_aperture_intensity(I_hat)                
         
-        energy_difference = (np.linalg.norm(img - estimate) ** 2) / I_actual_energy
+        I_actual_energy = np.linalg.norm(img[dark_zone]) ** 2        
+        energy_difference = (np.linalg.norm(img[dark_zone] - estimate[dark_zone]) ** 2) / I_actual_energy
         
         print('Energy difference is {}'.format(energy_difference))
         
@@ -214,6 +222,3 @@ for iter in range(50):
         plt.pause(0.1)     
 
         moving_average += 1
-        
-        
-        
