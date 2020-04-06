@@ -84,7 +84,6 @@ def get_intensity(actuators=None):
 	
 	return img.intensity / img_nocoro.intensity.max()
 
-
 def get_noisy_electric_field(random_walk, actuators=None):
     if actuators is not None:
         deformable_mirror.actuators = actuators
@@ -131,35 +130,17 @@ current_actuators = np.zeros(len(influence_functions))
 
 
 # Create probes
-probes = []
-
-for i in range(4):
-    values = np.sinc(owa * pupil_grid.x) * np.sinc(2 * owa * pupil_grid.y) \
-    * np.cos(2 * np.pi * owa / 2 * pupil_grid.x + i * np.pi / 4)
-    probes.append( hcipy.Field(values, pupil_grid) )
-    
-#fig, axs = plt.subplots(2,2) 
-##axs = axs.ravel()
+#probes = []
 #
 #for i in range(4):
-#    axs[i] = hcipy.imshow_field(probes[i])
-#plt.show()
+#    values = np.sinc(owa * pupil_grid.x) * np.sinc(2 * owa * pupil_grid.y) \
+#    * np.cos(2 * np.pi * owa / 2 * pupil_grid.x + i * np.pi / 4)
+#    probes.append( hcipy.Field(values, pupil_grid) )
 
 #for i in range(4):
 #    plt.subplot(2,2,i+1)
 #    hcipy.imshow_field(probes[i])
 #plt.show()  
-    
-    
-def probes_test(actuators=None):
-	if actuators is not None:
-		deformable_mirror.actuators = actuators
-	
-	wf = hcipy.Wavefront(aperture)
-	img = prop(coronagraph(aberration(wf)))
-	img_nocoro = prop(aberration(wf))
-	
-	return img.intensity / img_nocoro.intensity.max()
 
 
 
@@ -203,6 +184,47 @@ count = 0
 
 contrast_corrected_list = []
 contrast_uncorrected_list = []
+
+
+
+
+
+
+
+
+def probe_intensity(probe, actuators=None):
+    if actuators is not None:
+        deformable_mirror.actuators = actuators
+    #dtype = 'complex'
+    E0 = hcipy.Field(np.ones(aperture.size), aperture) * 0.001*np.random.normal(size=aperture.size)
+    a = E0 + aperture * probe
+    wf = hcipy.Wavefront(a)
+    img = prop(coronagraph(deformable_mirror(aberration(wf))))
+    img_nocoro = prop(deformable_mirror(aberration(wf)))
+    
+    return img.intensity / img_nocoro.intensity.max()
+
+
+
+def take_electric_field_pairwise(probes):
+    I_deltas = []
+    for probe in probes:
+        I_pos = probe_intensity(probe)
+        I_neg = probe_intensity(- probe)
+        I_deltas.append((I_pos - I_neg)[dark_zone])
+    
+    return I_deltas
+    
+#    response_matrix = np.concatenate((response_vector.real, response_vector.imag), axis=1)
+#    electric_field_vector = np.linalg.pinv(response_matrix).dot(intensity_vector)
+#    
+#    return electric_field_vector
+
+
+
+
+
+
 
 
 
