@@ -131,9 +131,9 @@ def filter_training_moving_average(l,m,n,alpha,window,data_matrix,history_new,a_
     return filter_MA,data_matrix,a_posteriori_matrix
 
 
-#TO DO: prendre les probes en entrée, et non le vecteur de réponses
+#TO DO: prendre les probes en entrée, et non le vecteur d'actuators
     
-def pairwise_estimation(response_vector, intensity_vector):
+def take_electric_field_pairwise(response_vector, intensity_vector):
     """Function to compute the electric field using pairwise.
     
     :param response_matrix: Response matrix to probes
