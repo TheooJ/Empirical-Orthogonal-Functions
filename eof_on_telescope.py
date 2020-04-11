@@ -17,9 +17,12 @@ epsilon = 1e-5
 
 iwa = 3
 owa = 12
-offset = 1
+offset = 3
+offset_max = 5.5
 
 efc_loop_gain = 1
+
+noise = 1e-5
 
 # Create grids
 pupil_grid = hcipy.make_pupil_grid(128)  # 128 pixels by dimension, diam = 1
@@ -27,8 +30,8 @@ focal_grid = hcipy.make_focal_grid(4, 16)
 prop = hcipy.FraunhoferPropagator(pupil_grid, focal_grid)
 
 aperture = hcipy.circular_aperture(1)(pupil_grid)  # Evaluated on pupil_grid
-dark_zone = ((hcipy.circular_aperture(2 * owa)(focal_grid) - hcipy.circular_aperture(2 * iwa)(focal_grid)) * (
-            focal_grid.x > offset)).astype(bool)
+#dark_zone = ((hcipy.circular_aperture(2 * owa)(focal_grid) - hcipy.circular_aperture(2 * iwa)(focal_grid)) * (focal_grid.x > offset) * (focal_grid.y > offset/2)).astype(bool)
+dark_zone = ((hcipy.circular_aperture(2 * owa)(focal_grid) - hcipy.circular_aperture(2 * iwa)(focal_grid)) * (focal_grid.x > offset) * (focal_grid.y > offset) * (focal_grid.x < offset_max) * (focal_grid.y < offset_max)).astype(bool)
 
 # Create optical elements
 coronagraph = hcipy.PerfectCoronagraph(aperture)
@@ -151,7 +154,7 @@ random_walk = hcipy.Field(np.zeros(aperture.size), aperture)  # , dtype='complex
 contrast_list = []
 
 # Run dark zone creation with efc then eof estimation
-for iteration in range(50):
+for iteration in range(30):
     # Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligible noise regime)
     while (np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) > -9) and created_dark_hole is False:
         E = get_electric_field(current_actuators)[dark_zone]
@@ -173,7 +176,7 @@ for iteration in range(50):
             created_dark_hole = True
 
     # Estimation when dark zone has been created
-    random_walk += hcipy.Field(0 * np.random.normal(size=aperture.size), aperture)
+    random_walk += hcipy.Field(noise * np.random.normal(size=aperture.size), aperture)
     E = get_noisy_electric_field(random_walk, current_actuators)[dark_zone]
 
     E_measured_list.insert(0, E.copy())
@@ -216,6 +219,6 @@ for iteration in range(50):
         plt.colorbar()
         plt.title('Dark hole electric field estimate, iteration {}'.format(iteration))
         plt.draw()
-        plt.pause(0.1)
+        plt.pause(0.5)
 
         moving_average += 1
