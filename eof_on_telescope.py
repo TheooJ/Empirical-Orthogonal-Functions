@@ -22,7 +22,7 @@ offset_max = 5.5
 
 efc_loop_gain = 1
 
-noise = 1e-5
+noise = 1e-4
 
 # Create grids
 pupil_grid = hcipy.make_pupil_grid(128)  # 128 pixels by dimension, diam = 1
@@ -128,14 +128,14 @@ efc_matrix = hcipy.inverse_tikhonov(response_matrix, 1e-3)
 current_actuators = np.zeros(len(influence_functions))
 
 # Filter parameters initialization
-l = 2
+l = 300
 m = sum(dark_zone)  # Estimate E for every pixel in dark zone
-n = 2
+n = 25
 delta_t = 1
 alpha = 0
 if alpha < 0:
     raise Exception("Sorry, regularization parameter must be positive of null")
-window = 4
+window = 10
 already_computed = False
 moving_average = 0
 nb_hist = 0
@@ -154,7 +154,7 @@ random_walk = hcipy.Field(np.zeros(aperture.size), aperture)  # , dtype='complex
 contrast_list = []
 
 # Run dark zone creation with efc then eof estimation
-for iteration in range(30):
+for iteration in range(10000):
     # Dark hole creation USING NON ACCESSIBLE PERFECT ELECTRIC FIELD (negligible noise regime)
     while (np.mean(np.log10(get_intensity(current_actuators)[dark_zone])) > -9) and created_dark_hole is False:
         E = get_electric_field(current_actuators)[dark_zone]
