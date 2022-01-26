@@ -1,10 +1,10 @@
-# Empirical-Orthogonal-Functions 
+# Empirical Orthogonal Functions : An Estimation Algorithm for Electric Field Prediction
 
 ## Goal
 
 Johns Hopkins University internship (2019-2020), in collaboration with the Space Telescope Science Institute.
 
-We worked on the Wavefront Sensing and Control algorithms (in dotted red lines on the figure below) that are built next to the telescope's architecture. This work focuses on a time-series algorithm built to estimate the electric field on the pupil plane of the camera.
+We worked on the Wavefront Sensing and Control algorithms (in dotted red lines on the figure below) that are built next to the telescope's architecture. This work focuses on a time-series algorithm built to predict the electric field on the image plane of the camera.
 
 <p align="center">
 <img src="WFS&C.png" class="centerImage" alt="drawing" width="450"/>
