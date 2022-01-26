@@ -7,14 +7,14 @@ Johns Hopkins University internship (2019-2020), in collaboration with the Space
 We worked on the Wavefront Sensing and Control algorithms (in dotted red lines on the figure below) that are built next to the telescope's architecture. This work focuses on a time-series algorithm built to estimate the electric field on the pupil plane of the camera.
 
 <p align="center">
-<img src="WFS&C.png" class="centerImage" alt="drawing" width="500"/>
+<img src="WFS&C.png" class="centerImage" alt="drawing" width="450"/>
  </p>
  
 ## Results
 The algorithm allows to estimate the electric field with high fidelity, much quicker than with expensive methods previously used (such as matrix inversion at every step, for every pixel), and takes advantage of the history of photons on the space camera.
 
 <p align="center">
-<img src="Estimation_Error.png" class="centerImage" alt="drawing" width="500"/>
+<img src="Estimation_Error.png" class="centerImage" alt="drawing" width="450"/>
  </p>
  
 The ultimate goal is to create a Dark Hole, a zone of deep contrast that could allow one to see very dim exoplanets. We iteratively use estimation and control algorithms to create a Dark Hole (the black semi-circle on the right of the camera) :
