@@ -1,4 +1,4 @@
-# Empirical Orthogonal Functions : An Estimation Algorithm for Electric Field Prediction
+# Empirical Orthogonal Functions : An Algorithm for Electric Field Prediction
 
 ## Goal
 
